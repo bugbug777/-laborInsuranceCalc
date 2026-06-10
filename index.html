@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>勞保與勞退成本試算</title>
+  <title>勞保與勞退試算</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/air-datepicker@3.6.0/air-datepicker.css">
   <style>
     :root {
       --bg: #f7f4ee;
@@ -208,6 +209,25 @@
       min-width: 118px;
     }
 
+    .air-datepicker {
+      --adp-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      --adp-color-current-date: var(--accent);
+      --adp-color-selected: #fff;
+      --adp-background-color-selected-other-month-focused: var(--accent);
+      --adp-background-color-selected-other-month: var(--accent);
+      --adp-background-color-selected: var(--accent);
+      --adp-background-color-selected-hover: var(--accent-strong);
+      --adp-cell-background-color-selected: var(--accent);
+      --adp-cell-background-color-selected-hover: var(--accent-strong);
+      --adp-border-color: var(--line);
+      border-radius: 8px;
+    }
+
+    .air-datepicker-cell.-selected-,
+    .air-datepicker-cell.-selected-.-focus- {
+      background: var(--accent);
+    }
+
     .type-select {
       min-width: 122px;
     }
@@ -371,7 +391,7 @@
   <main class="app">
     <header class="topbar">
       <div>
-        <h1>勞保與勞退成本試算</h1>
+        <h1>勞保與勞退試算</h1>
         <p class="subtitle">
           輸入每月時薪、一般時數與國定假日出勤時數，計算月薪資、勞保普通事故保險、就業保險，以及雇主勞退提撥。適用一般受僱員工與部分工時人員的快速估算。
         </p>
@@ -485,6 +505,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.6.0/air-datepicker.js"></script>
   <script>
     const LABOR_RATE = 0.115;
     const EMPLOYMENT_RATE = 0.01;
@@ -594,13 +615,17 @@
       return cell;
     }
 
-    function createInput({ type = "text", value = "", className = "", step, min }) {
+    function createInput({ type = "text", value = "", className = "", step, min, placeholder, pattern, inputMode, maxLength }) {
       const input = document.createElement("input");
       input.type = type;
       input.value = value;
       input.className = className;
       if (step) input.step = step;
       if (min !== undefined) input.min = min;
+      if (placeholder) input.placeholder = placeholder;
+      if (pattern) input.pattern = pattern;
+      if (inputMode) input.inputMode = inputMode;
+      if (maxLength) input.maxLength = maxLength;
       input.addEventListener("input", updateAll);
       return input;
     }
@@ -617,16 +642,63 @@
       return select;
     }
 
+    function parseMonthValue(value) {
+      const match = /^(\d{4})-(\d{2})$/.exec(value);
+      if (!match) return null;
+      const year = Number(match[1]);
+      const monthIndex = Number(match[2]) - 1;
+      if (monthIndex < 0 || monthIndex > 11) return null;
+      return new Date(year, monthIndex, 1);
+    }
+
+    function formatMonthValue(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      return `${year}-${month}`;
+    }
+
+    function initMonthPicker(input) {
+      if (!window.AirDatepicker) return;
+
+      new AirDatepicker(input, {
+        view: "months",
+        minView: "months",
+        autoClose: true,
+        dateFormat: formatMonthValue,
+        selectedDates: parseMonthValue(input.value) ? [parseMonthValue(input.value)] : [],
+        locale: {
+          days: ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"],
+          daysShort: ["日", "一", "二", "三", "四", "五", "六"],
+          daysMin: ["日", "一", "二", "三", "四", "五", "六"],
+          months: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+          monthsShort: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+          today: "今天",
+          clear: "清除",
+          dateFormat: "yyyy-MM",
+          timeFormat: "HH:mm",
+          firstDay: 1
+        },
+        onSelect() {
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+    }
+
     function addRow(data = {}) {
       const row = document.createElement("tr");
       row.className = "data-row";
 
       const monthCell = createCell("");
       const monthInput = createInput({
-        type: "month",
+        type: "text",
         value: data.month || "",
-        className: "month-input"
+        className: "month-input",
+        placeholder: "YYYY-MM",
+        pattern: "\\d{4}-\\d{2}",
+        inputMode: "numeric",
+        maxLength: 7
       });
+      initMonthPicker(monthInput);
       monthCell.append(monthInput);
 
       const typeCell = createCell("");
