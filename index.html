@@ -408,6 +408,7 @@
         <h2 id="table-title">多月份資料</h2>
         <div class="actions">
           <button class="btn" id="add-row" type="button">新增月份</button>
+          <button class="btn secondary" id="export-csv" type="button">匯出 Google Sheets CSV</button>
         </div>
       </div>
       <div class="table-wrap">
@@ -532,6 +533,7 @@
 
     const rowsEl = document.querySelector("#rows");
     const addRowButton = document.querySelector("#add-row");
+    const exportCsvButton = document.querySelector("#export-csv");
 
     const summaryEls = {
       totalActualHours: document.querySelector("#total-actual-hours"),
@@ -546,6 +548,11 @@
 
     function formatMoney(value) {
       return `$${Math.round(value).toLocaleString("zh-TW")}`;
+    }
+
+    function formatNumberForCsv(value) {
+      const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
+      return Number.isInteger(rounded) ? String(rounded) : String(rounded);
     }
 
     function formatHours(value) {
@@ -640,6 +647,10 @@
       select.value = value;
       select.addEventListener("change", updateAll);
       return select;
+    }
+
+    function getTypeLabel(type) {
+      return type === "fullTime" ? "一般受僱員工" : "部分工時人員";
     }
 
     function parseMonthValue(value) {
@@ -838,7 +849,117 @@
       summaryEls.totalSubsidy.textContent = formatMoney(totals.subsidyAmount);
     }
 
+    function isExportableRow(values) {
+      return Boolean(values.month) || values.hourly > 0 || values.regularHours > 0 || values.holidayHours > 0;
+    }
+
+    function buildExportData() {
+      const records = Array.from(rowsEl.querySelectorAll(".data-row"))
+        .map((row) => {
+          const values = getRowValues(row);
+          const result = calculate(values);
+          return { values, result };
+        })
+        .filter(({ values }) => isExportableRow(values));
+
+      const totals = records.reduce((sum, { result }) => {
+        sum.actualHours += result.actualHours;
+        sum.paidHours += result.paidHours;
+        sum.salary += result.salary;
+        sum.employeePayment += result.employeePayment;
+        sum.employerPayment += result.employerPayment;
+        sum.burdenGap += result.burdenGap;
+        sum.employerPension += result.employerPension;
+        sum.subsidyAmount += result.subsidyAmount;
+        return sum;
+      }, {
+        actualHours: 0,
+        paidHours: 0,
+        salary: 0,
+        employeePayment: 0,
+        employerPayment: 0,
+        burdenGap: 0,
+        employerPension: 0,
+        subsidyAmount: 0
+      });
+
+      return { records, totals };
+    }
+
+    function escapeCsvCell(value) {
+      const text = String(value ?? "");
+      return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+    }
+
+    function downloadCsv(filename, rows) {
+      const csv = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n");
+      const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportGoogleSheetsCsv() {
+      const { records, totals } = buildExportData();
+      const header = [
+        "月份",
+        "類型",
+        "時薪",
+        "一般時數",
+        "國定假日出勤時數",
+        "實際時數",
+        "計薪時數",
+        "月薪資",
+        "勞工自付",
+        "雇主負擔",
+        "勞雇差額",
+        "勞退提撥",
+        "應補貼額"
+      ];
+
+      const rows = records.map(({ values, result }) => [
+        values.month,
+        getTypeLabel(values.type),
+        formatNumberForCsv(values.hourly),
+        formatNumberForCsv(values.regularHours),
+        formatNumberForCsv(values.holidayHours),
+        formatNumberForCsv(result.actualHours),
+        formatNumberForCsv(result.paidHours),
+        result.salary,
+        result.employeePayment,
+        result.employerPayment,
+        result.burdenGap,
+        result.employerPension,
+        result.subsidyAmount
+      ]);
+
+      rows.push([
+        "合計",
+        "",
+        "",
+        "",
+        "",
+        formatNumberForCsv(totals.actualHours),
+        formatNumberForCsv(totals.paidHours),
+        totals.salary,
+        totals.employeePayment,
+        totals.employerPayment,
+        totals.burdenGap,
+        totals.employerPension,
+        totals.subsidyAmount
+      ]);
+
+      const today = new Date().toISOString().slice(0, 10);
+      downloadCsv(`labor-cost-${today}.csv`, [header, ...rows]);
+    }
+
     addRowButton.addEventListener("click", () => addRow());
+    exportCsvButton.addEventListener("click", exportGoogleSheetsCsv);
     addRow();
   </script>
 </body>
