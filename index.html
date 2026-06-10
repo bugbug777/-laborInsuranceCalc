@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>勞保與勞退成本試算</title>
+  <style>
+    :root {
+      --bg: #f7f4ee;
+      --panel: #fffefa;
+      --panel-strong: #f0f7f2;
+      --ink: #20231f;
+      --muted: #667067;
+      --line: #d9ded4;
+      --accent: #2e6b57;
+      --accent-strong: #214f41;
+      --danger: #9a2f2f;
+      --danger-bg: #fff0ee;
+      --shadow: 0 12px 30px rgba(43, 52, 44, 0.08);
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1520px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .version {
+      flex: 0 0 auto;
+      display: grid;
+      gap: 4px;
+      min-width: 214px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .version span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .version strong {
+      font-size: 15px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .toolbar h2,
+    .summary h2,
+    .notes h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      border-radius: 6px;
+      font-weight: 650;
+    }
+
+    .btn:hover {
+      background: var(--accent-strong);
+    }
+
+    .btn.secondary {
+      background: transparent;
+      color: var(--accent-strong);
+    }
+
+    .btn.secondary:hover {
+      background: #e7f0ea;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 1120px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 6px;
+      vertical-align: top;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #edf3ee;
+      color: #344238;
+      font-size: 12px;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td {
+      font-size: 13px;
+    }
+
+    td:first-child,
+    th:first-child {
+      text-align: left;
+      padding-left: 16px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid #cbd3c9;
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+
+    input[type="number"] {
+      text-align: right;
+    }
+
+    .month-input {
+      min-width: 118px;
+    }
+
+    .type-select {
+      min-width: 122px;
+    }
+
+    .number-input {
+      min-width: 80px;
+    }
+
+    .money,
+    .hours {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .strong-money {
+      font-weight: 800;
+      color: var(--accent-strong);
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 6px;
+      border: 1px solid #d7c7c2;
+      background: #fff7f5;
+      color: var(--danger);
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .icon-btn:hover {
+      background: var(--danger-bg);
+    }
+
+    .summary {
+      margin-top: 18px;
+      padding: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .metric {
+      min-height: 92px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      border-radius: 8px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: clamp(20px, 2vw, 28px);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-strong);
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .note-block {
+      padding: 18px;
+    }
+
+    .formula {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    code {
+      display: block;
+      padding: 10px 12px;
+      background: #f3f1ec;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      white-space: normal;
+      line-height: 1.55;
+      color: #263129;
+    }
+
+    .source-list {
+      margin: 14px 0 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .source-list a {
+      color: var(--accent-strong);
+      font-weight: 650;
+    }
+
+    .small-text {
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        padding: 18px;
+      }
+
+      .topbar,
+      .toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .version {
+        min-width: 0;
+      }
+
+      .summary-grid,
+      .notes {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .app {
+        padding: 0;
+      }
+
+      .actions,
+      .icon-btn {
+        display: none;
+      }
+
+      .panel,
+      .metric {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>勞保與勞退成本試算</h1>
+        <p class="subtitle">
+          輸入每月時薪、一般時數與國定假日出勤時數，計算月薪資、勞保普通事故保險、就業保險，以及雇主勞退提撥。適用一般受僱員工與部分工時人員的快速估算。
+        </p>
+      </div>
+      <div class="version" aria-label="資料版本">
+        <span>資料版本</span>
+        <strong>2026 年級距與費率</strong>
+        <span>普通事故 11.5% / 就保 1% / 勞退 6%</span>
+      </div>
+    </header>
+
+    <section class="panel" aria-labelledby="table-title">
+      <div class="toolbar">
+        <h2 id="table-title">多月份資料</h2>
+        <div class="actions">
+          <button class="btn" id="add-row" type="button">新增月份</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>月份</th>
+              <th>類型</th>
+              <th>時薪</th>
+              <th>一般時數</th>
+              <th>國定假日</th>
+              <th>實際時數</th>
+              <th>計薪時數</th>
+              <th>月薪資</th>
+              <th>勞工自付</th>
+              <th>雇主負擔</th>
+              <th>勞雇差額</th>
+              <th>勞退提撥</th>
+              <th>應補貼額</th>
+              <th>刪除</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel summary" aria-labelledby="summary-title">
+      <h2 id="summary-title">合計</h2>
+      <div class="summary-grid">
+        <div class="metric">
+          <span>總實際時數</span>
+          <strong id="total-actual-hours">0</strong>
+        </div>
+        <div class="metric">
+          <span>總計薪時數</span>
+          <strong id="total-paid-hours">0</strong>
+        </div>
+        <div class="metric">
+          <span>總薪資</span>
+          <strong id="total-salary">$0</strong>
+        </div>
+        <div class="metric">
+          <span>勞工自付總額</span>
+          <strong id="total-employee">$0</strong>
+        </div>
+        <div class="metric">
+          <span>雇主勞保/就保負擔</span>
+          <strong id="total-employer">$0</strong>
+        </div>
+        <div class="metric">
+          <span>勞雇負擔差額</span>
+          <strong id="total-gap">$0</strong>
+        </div>
+        <div class="metric">
+          <span>雇主勞退提撥</span>
+          <strong id="total-pension">$0</strong>
+        </div>
+        <div class="metric">
+          <span>應補貼總額</span>
+          <strong id="total-subsidy">$0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="notes">
+      <div class="panel note-block">
+        <h2>公式</h2>
+        <div class="formula">
+          <code>實際時數 = 一般時數 + 國定假日出勤時數</code>
+          <code>計薪時數 = 一般時數 + 國定假日出勤時數 × 2</code>
+          <code>月薪資 = 四捨五入(時薪 × 計薪時數)</code>
+          <code>勞工自付額 = 四捨五入(勞就保月投保薪資 × 12.5% × 20%)</code>
+          <code>雇主負擔額 = 四捨五入(勞就保月投保薪資 × 12.5% × 70%)</code>
+          <code>勞雇負擔差額 = 雇主負擔額 - 勞工自付額</code>
+          <code>雇主勞退提撥 = 四捨五入(勞退月提繳工資 × 6%)</code>
+          <code>應補貼額 = 勞雇負擔差額 + 雇主勞退提撥</code>
+        </div>
+        <p class="small-text">
+          時薪、一般時數與國定假日出勤時數保留原輸入值，不做四捨五入；只有月薪資與各項金額會以整數元呈現。
+        </p>
+      </div>
+
+      <div class="panel note-block">
+        <h2>資料來源</h2>
+        <ul class="source-list">
+          <li><a href="https://www.bli.gov.tw/0014162.html" target="_blank" rel="noreferrer">勞保、就保、災保保險費試算</a></li>
+          <li><a href="https://www.bli.gov.tw/0108097.html" target="_blank" rel="noreferrer">月薪資總額對應月投保薪資（月提繳工資）試算</a></li>
+          <li><a href="https://law.moj.gov.tw/LawClass/LawSingle.aspx?flno=14&pcode=N0030020" target="_blank" rel="noreferrer">勞工退休金條例第 14 條</a></li>
+        </ul>
+        <p class="small-text">
+          本工具為估算用途，國定假日出勤以 2 倍計薪；不含健保、職災保險、休息日或例假日出勤、平日延長工時加班費、勞工自願提繳勞退、月中加退保或特殊身分補助。
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const LABOR_RATE = 0.115;
+    const EMPLOYMENT_RATE = 0.01;
+    const TOTAL_INSURANCE_RATE = LABOR_RATE + EMPLOYMENT_RATE;
+    const EMPLOYEE_SHARE = 0.2;
+    const EMPLOYER_SHARE = 0.7;
+    const PENSION_RATE = 0.06;
+
+    const insuranceGrades = [
+      11100, 12540, 13500, 15840, 16500, 17280, 17880, 19047, 20008, 21009,
+      22000, 23100, 24000, 25250, 26400, 27600, 28590, 29500, 30300, 31800,
+      33300, 34800, 36300, 38200, 40100, 42000, 43900, 45800
+    ];
+
+    const pensionGrades = [
+      1500, 3000, 4500, 6000, 7500, 8700, 9900, 11100, 12540, 13500,
+      15840, 16500, 17280, 17880, 19047, 20008, 21009, 22000, 23100, 24000,
+      25250, 26400, 27600, 28800, 30300, 31800, 33300, 34800, 36300, 38200,
+      40100, 42000, 43900, 45800, 48200, 50600, 53000, 55400, 57800, 60800,
+      63800, 66800, 69800, 72800, 76500, 80200, 83900, 87600, 92100, 96600,
+      101100, 105600, 110100, 115500, 120900, 126300, 131700, 137100, 142500,
+      147900, 150000
+    ];
+
+    const rowsEl = document.querySelector("#rows");
+    const addRowButton = document.querySelector("#add-row");
+
+    const summaryEls = {
+      totalActualHours: document.querySelector("#total-actual-hours"),
+      totalPaidHours: document.querySelector("#total-paid-hours"),
+      totalSalary: document.querySelector("#total-salary"),
+      totalEmployee: document.querySelector("#total-employee"),
+      totalEmployer: document.querySelector("#total-employer"),
+      totalGap: document.querySelector("#total-gap"),
+      totalPension: document.querySelector("#total-pension"),
+      totalSubsidy: document.querySelector("#total-subsidy")
+    };
+
+    function formatMoney(value) {
+      return `$${Math.round(value).toLocaleString("zh-TW")}`;
+    }
+
+    function formatHours(value) {
+      const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
+      return rounded.toLocaleString("zh-TW", {
+        minimumFractionDigits: Number.isInteger(rounded) ? 0 : 1,
+        maximumFractionDigits: 2
+      });
+    }
+
+    function readNumber(input) {
+      const value = Number.parseFloat(input.value);
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    function findGrade(amount, grades) {
+      const normalized = Math.max(0, amount);
+      const match = grades.find((grade) => normalized <= grade);
+      return match ?? grades[grades.length - 1];
+    }
+
+    function calculate(values) {
+      const actualHours = values.regularHours + values.holidayHours;
+      const paidHours = values.regularHours + values.holidayHours * 2;
+      const rawSalary = values.hourly * paidHours;
+      const salary = Math.round(rawSalary);
+      if (values.hourly === 0 && values.regularHours === 0 && values.holidayHours === 0) {
+        return {
+          actualHours,
+          paidHours,
+          salary,
+          insuranceSalary: 0,
+          employeePayment: 0,
+          employerPayment: 0,
+          burdenGap: 0,
+          pensionSalary: 0,
+          employerPension: 0,
+          subsidyAmount: 0
+        };
+      }
+      const insuranceSalary = findGrade(salary, insuranceGrades);
+      const employeePayment = Math.round(insuranceSalary * TOTAL_INSURANCE_RATE * EMPLOYEE_SHARE);
+      const employerPayment = Math.round(insuranceSalary * TOTAL_INSURANCE_RATE * EMPLOYER_SHARE);
+      const burdenGap = employerPayment - employeePayment;
+      const pensionSalary = findGrade(salary, pensionGrades);
+      const employerPension = Math.round(pensionSalary * PENSION_RATE);
+      const subsidyAmount = burdenGap + employerPension;
+
+      return {
+        actualHours,
+        paidHours,
+        salary,
+        insuranceSalary,
+        employeePayment,
+        employerPayment,
+        burdenGap,
+        pensionSalary,
+        employerPension,
+        subsidyAmount
+      };
+    }
+
+    function createCell(className, text = "") {
+      const cell = document.createElement("td");
+      if (className) cell.className = className;
+      cell.textContent = text;
+      return cell;
+    }
+
+    function createInput({ type = "text", value = "", className = "", step, min }) {
+      const input = document.createElement("input");
+      input.type = type;
+      input.value = value;
+      input.className = className;
+      if (step) input.step = step;
+      if (min !== undefined) input.min = min;
+      input.addEventListener("input", updateAll);
+      return input;
+    }
+
+    function createTypeSelect(value) {
+      const select = document.createElement("select");
+      select.className = "type-select";
+      select.innerHTML = `
+        <option value="fullTime">一般受僱員工</option>
+        <option value="partTime">部分工時人員</option>
+      `;
+      select.value = value;
+      select.addEventListener("change", updateAll);
+      return select;
+    }
+
+    function addRow(data = {}) {
+      const row = document.createElement("tr");
+      row.className = "data-row";
+
+      const monthCell = createCell("");
+      const monthInput = createInput({
+        type: "month",
+        value: data.month || "",
+        className: "month-input"
+      });
+      monthCell.append(monthInput);
+
+      const typeCell = createCell("");
+      typeCell.append(createTypeSelect(data.type || "partTime"));
+
+      const hourlyCell = createCell("");
+      hourlyCell.append(createInput({
+        type: "number",
+        value: data.hourly ?? "",
+        className: "number-input",
+        step: "0.01",
+        min: "0"
+      }));
+
+      const hoursCell = createCell("");
+      hoursCell.append(createInput({
+        type: "number",
+        value: data.regularHours ?? "",
+        className: "number-input",
+        step: "0.01",
+        min: "0"
+      }));
+
+      const holidayHoursCell = createCell("");
+      holidayHoursCell.append(createInput({
+        type: "number",
+        value: data.holidayHours ?? "",
+        className: "number-input",
+        step: "0.01",
+        min: "0"
+      }));
+
+      row.append(
+        monthCell,
+        typeCell,
+        hourlyCell,
+        hoursCell,
+        holidayHoursCell,
+        createCell("hours", "0"),
+        createCell("hours", "0"),
+        createCell("money strong-money", "$0"),
+        createCell("money", "$0"),
+        createCell("money", "$0"),
+        createCell("money", "$0"),
+        createCell("money", "$0"),
+        createCell("money strong-money", "$0")
+      );
+
+      const deleteCell = createCell("");
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "icon-btn";
+      deleteButton.type = "button";
+      deleteButton.textContent = "×";
+      deleteButton.title = "刪除此月份";
+      deleteButton.setAttribute("aria-label", "刪除此月份");
+      deleteButton.addEventListener("click", () => {
+        row.remove();
+        if (!rowsEl.querySelector(".data-row")) addRow();
+        updateAll();
+      });
+      deleteCell.append(deleteButton);
+      row.append(deleteCell);
+
+      rowsEl.append(row);
+      updateAll();
+    }
+
+    function getRowValues(row) {
+      const inputs = row.querySelectorAll("input");
+      const select = row.querySelector("select");
+      return {
+        month: inputs[0].value,
+        type: select.value,
+        hourly: readNumber(inputs[1]),
+        regularHours: readNumber(inputs[2]),
+        holidayHours: readNumber(inputs[3])
+      };
+    }
+
+    function updateRow(row) {
+      const values = getRowValues(row);
+      const result = calculate(values);
+      const cells = row.querySelectorAll("td");
+
+      cells[5].textContent = formatHours(result.actualHours);
+      cells[6].textContent = formatHours(result.paidHours);
+      cells[7].textContent = formatMoney(result.salary);
+      cells[8].textContent = formatMoney(result.employeePayment);
+      cells[9].textContent = formatMoney(result.employerPayment);
+      cells[10].textContent = formatMoney(result.burdenGap);
+      cells[11].textContent = formatMoney(result.employerPension);
+      cells[12].textContent = formatMoney(result.subsidyAmount);
+
+      return {
+        actualHours: result.actualHours,
+        paidHours: result.paidHours,
+        salary: result.salary,
+        employeePayment: result.employeePayment,
+        employerPayment: result.employerPayment,
+        burdenGap: result.burdenGap,
+        employerPension: result.employerPension,
+        subsidyAmount: result.subsidyAmount
+      };
+    }
+
+    function updateAll() {
+      const totals = {
+        actualHours: 0,
+        paidHours: 0,
+        salary: 0,
+        employeePayment: 0,
+        employerPayment: 0,
+        burdenGap: 0,
+        employerPension: 0,
+        subsidyAmount: 0
+      };
+
+      rowsEl.querySelectorAll(".data-row").forEach((row) => {
+        const result = updateRow(row);
+        totals.actualHours += result.actualHours;
+        totals.paidHours += result.paidHours;
+        totals.salary += result.salary;
+        totals.employeePayment += result.employeePayment;
+        totals.employerPayment += result.employerPayment;
+        totals.burdenGap += result.burdenGap;
+        totals.employerPension += result.employerPension;
+        totals.subsidyAmount += result.subsidyAmount;
+      });
+
+      summaryEls.totalActualHours.textContent = formatHours(totals.actualHours);
+      summaryEls.totalPaidHours.textContent = formatHours(totals.paidHours);
+      summaryEls.totalSalary.textContent = formatMoney(totals.salary);
+      summaryEls.totalEmployee.textContent = formatMoney(totals.employeePayment);
+      summaryEls.totalEmployer.textContent = formatMoney(totals.employerPayment);
+      summaryEls.totalGap.textContent = formatMoney(totals.burdenGap);
+      summaryEls.totalPension.textContent = formatMoney(totals.employerPension);
+      summaryEls.totalSubsidy.textContent = formatMoney(totals.subsidyAmount);
+    }
+
+    addRowButton.addEventListener("click", () => addRow());
+    addRow();
+  </script>
+</body>
+</html>
